@@ -5,57 +5,43 @@ import urllib.parse
 import zipfile
 import io
 
-def download_and_extract_zip(repo_name, output_dir):
-    zip_url = f"https://github.com/{repo_name}/archive/refs/heads/main.zip"
+def download_and_extract(repo_name, dest_dir):
+    """Downloads a GitHub repository as ZIP and extracts it."""
+    zip_url = f"https://github.com/{{repo_name}}/archive/refs/heads/main.zip"
     try:
-        with urllib.request.urlopen(zip_url) as response:
-            if response.getcode() != 200:
-                raise Exception(f"Failed to download zip file: HTTP {response.getcode()}")
-            zip_content = response.read()
-            
-            with zipfile.ZipFile(io.BytesIO(zip_content), 'r') as zip_ref:
-                # 避免壓縮檔內的絕對路徑攻擊
-                for member in zip_ref.infolist():
-                    filepath = os.path.normpath(member.filename)
-                    if filepath.startswith("..") or os.path.isabs(filepath):
-                        raise Exception("Invalid file path in zip archive")
+        with urllib.request.urlopen(zip_url) as resp:
+            if resp.getcode() != 200:
+                raise ValueError(f"Failed to download {{zip_url}}: HTTP {{resp.getcode()}}")
+            data = resp.read()
+            zip_file = zipfile.ZipFile(io.BytesIO(data))
+            zip_file.extractall(dest_dir)
+            # GitHub creates a root folder like "repo-main", rename it to dest_dir
+            root_folder = os.path.join(dest_dir, os.listdir(dest_dir)[0])
+            for item in os.listdir(root_folder):
+                s = os.path.join(root_folder, item)
+                d = os.path.join(dest_dir, item)
+                os.rename(s, d)
+            os.rmdir(root_folder)
 
-                zip_ref.extractall(output_dir)
-            
-            # GitHub 預設會在 zip 裡放一層目錄，需要調整
-            extracted_folder = os.path.join(output_dir, os.path.splitext(os.path.basename(zip_url))[0])
-            repo_folder = os.path.join(output_dir, repo_name.split("/")[1] + "-main")
-            if os.path.exists(extracted_folder) and os.path.isdir(extracted_folder):
-                # 將內容移動到 repo_folder
-                for item in os.listdir(extracted_folder):
-                    s = os.path.join(extracted_folder, item)
-                    d = os.path.join(repo_folder, item)
-                    if os.path.isdir(s):
-                        import shutil
-                        shutil.move(s, d)
-                    else:
-                        os.rename(s, d)
-                # 刪除空目錄
-                os.rmdir(extracted_folder)
-
-
-            print(f"程式碼已下載並解壓縮到 {repo_folder}")
-            return repo_folder
     except Exception as e:
-        print(f"下載或解壓縮失敗: {e}")
-        return None
+        print(f"Error downloading or extracting: {e}")
+        return False
+    return True
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python get_github_code.py <repo_name>")
+        return
+
+    repo_name = sys.argv[1]
+    dest_dir = "repo"  # Fixed destination directory
+
+    os.makedirs(dest_dir, exist_ok=True)
+
+    if download_and_extract(repo_name, dest_dir):
+        print(f"Successfully downloaded and extracted {repo_name} to {dest_dir}")
+    else:
+        print(f"Failed to download and extract {repo_name}")
 
 if __name__ == "__main__":
-    repo_name = sys.argv[1] if len(sys.argv) > 1 else None
-    if not repo_name:
-        print("請提供 GitHub 倉庫名稱 (例如: lobstervis-GIT/bakery-seat-system)")
-        sys.exit(1)
-    
-    output_dir = "repo"
-    os.makedirs(output_dir, exist_ok=True)
-    
-    repo_path = download_and_extract_zip(repo_name, output_dir)
-    if repo_path:
-        print(f"倉庫路徑: {repo_path}")
-    else:
-        sys.exit(1)
+    main()
