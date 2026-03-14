@@ -1,53 +1,33 @@
 import sys
 import os
-import urllib.request
-import urllib.parse
-import json
+import subprocess
 
-def get_github_code(repo_name):
-    """
-    從 GitHub 倉庫抓取程式碼。
-    """
-    try:
-        # 1. 取得仓库信息
-        api_url = f"https://api.github.com/repos/{repo_name}"
-        with urllib.request.urlopen(api_url) as response:
-            repo_info = json.load(response)
-        
-        # 2. 取得預設分支
-        default_branch = repo_info["default_branch"]
-        
-        # 3. 取得根目錄下的所有檔案
-        api_url = f"https://api.github.com/repos/{repo_name}/git/trees/{default_branch}?recursive=1"
-        with urllib.request.urlopen(api_url) as response:
-            tree_info = json.load(response)
-        
-        # 4. 抓取程式碼
-        code_files = {}
-        for item in tree_info["tree"]:
-            if item["type"] == "blob":
-                file_path = item["path"]
-                raw_url = f"https://raw.githubusercontent.com/{repo_name}/{default_branch}/{file_path}"
-                try:
-                    with urllib.request.urlopen(raw_url) as raw_response:
-                        code = raw_response.read().decode("utf-8")
-                        code_files[file_path] = code
-                except Exception as e:
-                    print(f"抓取檔案 {file_path} 失敗: {e}")
+repo_name = sys.argv[1] if len(sys.argv) > 1 else ""
 
-        return code_files
+if not repo_name:
+    print("請提供 GitHub 倉庫名稱 (例如: lobstervis-GIT/bakery-seat-system)")
+    sys.exit(1)
 
-    except Exception as e:
-        print(f"發生錯誤: {e}")
-        return None
+repo_url = f"https://github.com/{repo_name}"
+repo_dir = f"/tmp/{repo_name.replace('/', '_')}"
 
-if __name__ == "__main__":
-    repo_name = sys.argv[1] if len(sys.argv) > 1 else ""
-    if repo_name:
-        result = get_github_code(repo_name)
-        if result:
-            print(json.dumps(result))
-        else:
-            print("抓取程式碼失敗")
+if os.path.exists(repo_dir):
+    print(f"倉庫 {repo_name} 已經存在於 {repo_dir}，將先刪除。")
+    subprocess.run(['rm', '-rf', repo_dir])
+
+try:
+    result = subprocess.run(['git', 'clone', repo_url, repo_dir], capture_output=True, text=True, timeout=60)
+    if result.returncode == 0:
+        print(f"成功抓取 {repo_name} 到 {repo_dir}")
+        print(f"程式碼位置: {repo_dir}")
+        print(repo_dir)
     else:
-        print("請提供 GitHub 倉庫名稱")
+        print(f"抓取 {repo_name} 失敗: {result.stderr}")
+        if "Repository not found" in result.stderr:
+            print("倉庫不存在。")
+        else:
+            print("Git 命令執行錯誤。")
+        sys.exit(1)
+except Exception as e:
+    print(f"發生錯誤: {e}")
+    sys.exit(1)
