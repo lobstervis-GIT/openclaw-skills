@@ -3,23 +3,30 @@ import urllib.request
 import urllib.parse
 import json
 
-def search(query, max_results=3):
-    url = f"https://api.duckduckgo.com/?q={urllib.parse.quote(query)}&format=json"
+def web_search(query, max_results=5):
+    url = "https://duckduckgo.com/?q=" + urllib.parse.quote_plus(query) + "&kl=wt-wt&kp=-1&t=hk&df=y"
     try:
-        response = urllib.request.urlopen(url)
-        data = json.loads(response.read())
-        results = []
-        for result in data.get("RelatedTopics", []):
-            if isinstance(result, dict) and "FirstURL" in result and "Text" in result:
-                results.append({"title": result["Text"], "url": result["FirstURL"]})
-                if len(results) >= max_results:
-                    break
-        return results
+        with urllib.request.urlopen(url) as response:
+            html = response.read().decode('utf-8')
+            #print(html)
+            # Extract relevant information (this will need refinement)
+            results = []
+            import re
+            for match in re.finditer(r'<a href="([^"]*)" class="[^"]*">(.*?)</a>', html, re.IGNORECASE):
+                link = match.group(1)
+                title = match.group(2)
+                if link.startswith("/"):
+                  continue
+                results.append({"title": title, "link": link})
+            return results
     except Exception as e:
-        return [{"error": str(e)}]
+        print(f"Error during web search: {e}")
+        return []
+
 
 if __name__ == "__main__":
-    query = sys.argv[1] if len(sys.argv) > 1 else "AI future trends"
-    results = search(query)
-    for r in results:
-        print(f"- {r.get('title', '')}: {r.get('url', '')}")
+    query = sys.argv[1] if len(sys.argv) > 1 else "AI 未來發展趨勢"
+    search_results = web_search(query)
+    print("Web Search Results:")
+    for result in search_results:
+        print(f"- {result['title']}: {result['link']}")
