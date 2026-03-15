@@ -4,27 +4,23 @@ import urllib.parse
 import json
 
 def web_search(query, max_results=5):
-    """使用 DuckDuckGo 搜尋網路資訊。"""
-    base_url = "https://api.duckduckgo.com/"
-    params = {
-        "q": query,
-        "format": "json",
-        "pretty": 1,
-        "no_redirect": 1  # 防止重新導向
-    }
-    url = base_url + "?" + urllib.parse.urlencode(params)
+    search_url = "https://duckduckgo.com/?q=" + urllib.parse.quote_plus(query) + "&kl=wt-wt"
     try:
-        with urllib.request.urlopen(url) as response:
-            data = json.loads(response.read().decode())
+        with urllib.request.urlopen(search_url) as response:
+            html = response.read().decode('utf-8')
+            # This is a very basic scraping, you might want to use a proper HTML parser
             results = []
-            for result in data.get("RelatedTopics", [])[:max_results]:
-                results.append(f'{result.get("Text", "")}: {result.get("FirstURL", "")}')
-            return results
+            for i in range(min(max_results, html.count("result__a"))):
+                start = html.find("result__a")
+                end = html.find("</a>", start)
+                link = html[start + 10:end]
+                results.append(link)
+                html = html[end+4:]
+        return results
     except Exception as e:
-        return f"搜尋失敗: {e}"
+        return str(e)
 
 if __name__ == "__main__":
-    query = sys.argv[1] if len(sys.argv) > 1 else "AI 未來發展趨勢"
+    query = sys.argv[1] if len(sys.argv) > 1 else "test"
     results = web_search(query)
-    for r in results:
-        print(r)
+    print(json.dumps(results))
