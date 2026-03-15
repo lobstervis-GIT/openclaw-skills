@@ -4,31 +4,27 @@ import urllib.parse
 import json
 
 def web_search(query, max_results=5):
-    base_url = "https://duckduckgo.com/?q={}&kl=wt-wt&t=h_&ia=web"
-    quoted_query = urllib.parse.quote_plus(query)
-    url = base_url.format(quoted_query)
-
+    """使用 DuckDuckGo 搜尋網路資訊。"""
+    base_url = "https://api.duckduckgo.com/"
+    params = {
+        "q": query,
+        "format": "json",
+        "pretty": 1,
+        "no_redirect": 1  # 防止重新導向
+    }
+    url = base_url + "?" + urllib.parse.urlencode(params)
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req) as response:
-            html = response.read().decode("utf-8")
-
-        # DuckDuckGo doesn't provide a clean API, so we'll have to use some basic string parsing.
-        results = []
-        for i in range(max_results):
-            start = html.find('result__a href="', i*500) # Adjust offset as needed
-            if start == -1:
-                break
-            start += len('result__a href="')
-            end = html.find('"', start)
-            link = html[start:end]
-            results.append(link)
-
-        return results
+        with urllib.request.urlopen(url) as response:
+            data = json.loads(response.read().decode())
+            results = []
+            for result in data.get("RelatedTopics", [])[:max_results]:
+                results.append(f'{result.get("Text", "")}: {result.get("FirstURL", "")}')
+            return results
     except Exception as e:
-        return f"Error: {e}"
+        return f"搜尋失敗: {e}"
 
 if __name__ == "__main__":
     query = sys.argv[1] if len(sys.argv) > 1 else "AI 未來發展趨勢"
     results = web_search(query)
-    print(json.dumps(results))
+    for r in results:
+        print(r)
