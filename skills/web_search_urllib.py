@@ -4,23 +4,30 @@ import urllib.parse
 import json
 
 def web_search(query, max_results=5):
-    search_url = "https://duckduckgo.com/?q=" + urllib.parse.quote_plus(query) + "&kl=wt-wt"
+    base_url = "https://duckduckgo.com/?q="
+    text = urllib.parse.quote_plus(query)
+    url = base_url + text + "&kl=wt-wt"
+    
     try:
-        with urllib.request.urlopen(search_url) as response:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
             html = response.read().decode('utf-8')
-            # This is a very basic scraping, you might want to use a proper HTML parser
-            results = []
-            for i in range(min(max_results, html.count("result__a"))):
-                start = html.find("result__a")
-                end = html.find("</a>", start)
-                link = html[start + 10:end]
-                results.append(link)
-                html = html[end+4:]
-        return results
+
+        start = html.find('results="')
+        if start == -1:
+            return []
+        start += len('results="')
+        end = html.find('" ',start)
+        results = html[start:end]
+        results = json.loads(results)
+
+        return results[:max_results]
+
     except Exception as e:
-        return str(e)
+        print(f"Error during web search: {e}")
+        return []
 
 if __name__ == "__main__":
-    query = sys.argv[1] if len(sys.argv) > 1 else "test"
-    results = web_search(query)
-    print(json.dumps(results))
+    query = sys.argv[1] if len(sys.argv) > 1 else "AI 未來發展趨勢"
+    search_results = web_search(query)
+    print(json.dumps(search_results, indent=2, ensure_ascii=False))
