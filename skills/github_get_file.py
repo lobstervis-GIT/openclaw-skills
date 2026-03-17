@@ -2,6 +2,7 @@ import sys
 import urllib.request
 import urllib.parse
 import json
+import base64
 
 def main():
     try:
@@ -18,7 +19,6 @@ def main():
 
         # Check if content is base64 encoded
         if 'encoding' in data and data['encoding'] == 'base64':
-            import base64
             content = base64.b64decode(data['content']).decode()
         else:
             content = data['content']
