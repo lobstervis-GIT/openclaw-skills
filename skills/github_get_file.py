@@ -12,18 +12,16 @@ def main():
         # GitHub API endpoint for getting file content
         api_url = f"https://api.github.com/repos/{repo_name}/contents/{file_path}"
 
-        # Make the request
-        req = urllib.request.Request(api_url)
-        response = urllib.request.urlopen(req)
-        data = json.loads(response.read().decode())
+        # Set up the request headers (including the Accept header)
+        headers = {'Accept': 'application/vnd.github.v3.raw'}
+        req = urllib.request.Request(api_url, headers=headers)
 
-        # Check if content is base64 encoded
-        if 'encoding' in data and data['encoding'] == 'base64':
-            content = base64.b64decode(data['content']).decode()
-        else:
-            content = data['content'] if 'content' in data else ""
-
-        print(content)
+        with urllib.request.urlopen(req) as response:
+            if response.getcode() == 200:
+                content = response.read().decode('utf-8')
+                print(content)
+            else:
+                print(f"Error: Unable to retrieve file. HTTP status code: {response.getcode()}")
 
     except Exception as e:
         print(f"Error: {e}")
