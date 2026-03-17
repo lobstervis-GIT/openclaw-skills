@@ -21,7 +21,7 @@ def main():
         if 'encoding' in data and data['encoding'] == 'base64':
             content = base64.b64decode(data['content']).decode()
         else:
-            content = data['content']
+            content = data['content'] if 'content' in data else ""
 
         print(content)
 
