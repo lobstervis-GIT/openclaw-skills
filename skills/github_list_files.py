@@ -1,22 +1,22 @@
 import sys
-import subprocess
+import urllib.request
 import json
 
-repo_name = sys.argv[1]
-
-command = ['gh', 'repo', 'list-files', repo_name, '--json', 'path']
-process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-stdout, stderr = process.communicate()
-
-if stderr:
-    print(f"Error: {stderr.decode()}")
-else:
+def main():
+    repo_name = sys.argv[1] if len(sys.argv) > 1 else "bakery-seat-system"
+    owner = "lobstervis-GIT"
+    url = f"https://api.github.com/repos/{owner}/{repo_name}/contents"
+    
     try:
-        data = json.loads(stdout.decode())
-        files = [item['path'] for item in data]
-        print(json.dumps(files))
-    except json.JSONDecodeError as e:
-        print(f"JSON Decode Error: {e}")
-        print(f"Raw output: {stdout.decode()}")
+        req = urllib.request.Request(url)
+        response = urllib.request.urlopen(req)
+        data = json.loads(response.read())
+        
+        print(f"{repo_name} 的檔案列表:")
+        for item in data:
+            print(f"- {item['name']} ({item['type']})")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"錯誤: {e}")
+
+if __name__ == "__main__":
+    main()
